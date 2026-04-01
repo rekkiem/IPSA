@@ -1,0 +1,94 @@
+{
+  "date": "2026-01-01 09:00",
+  "macro": {
+    "usdclp": 929.21,
+    "risk_free_rate": 0.05,
+    "inflation": 0.048
+  },
+  "regime": {
+    "regime": "BULL"
+  },
+  "changes": {
+    "changed": false
+  },
+  "top5": [
+    {
+      "ticker": "CHILE.SN",
+      "score": 0.48,
+      "dividend_yield": 0.058,
+      "momentum_3m": 8.5,
+      "momentum_6m": 12.0,
+      "rsi": 50.0,
+      "max_drawdown": -8.5,
+      "signal": "🟢 COMPRAR",
+      "is_excluded": false,
+      "kill_reasons": [],
+      "thesis": "tesis1",
+      "factor_dividend": 0.7,
+      "factor_quality": 0.68,
+      "factor_momentum": 0.62,
+      "factor_risk": 0.75,
+      "weight_pct": 30.0
+    },
+    {
+      "ticker": "TEST.SN",
+      "score": null,
+      "dividend_yield": null,
+      "momentum_3m": null,
+      "momentum_6m": null,
+      "rsi": null,
+      "max_drawdown": null,
+      "signal": "🟡 ESPERAR",
+      "is_excluded": true,
+      "kill_reasons": [
+        "test"
+      ],
+      "thesis": "tesis2",
+      "factor_dividend": null,
+      "factor_quality": null,
+      "factor_momentum": null,
+      "factor_risk": null,
+      "weight_pct": null
+    }
+  ],
+  "ranked_all": [
+    {
+      "ticker": "CHILE.SN",
+      "score": 0.48,
+      "dividend_yield": 0.058,
+      "momentum_3m": 8.5,
+      "momentum_6m": 12.0,
+      "rsi": 50.0,
+      "max_drawdown": -8.5,
+      "signal": "🟢 COMPRAR",
+      "is_excluded": false,
+      "kill_reasons": [],
+      "thesis": "tesis1",
+      "factor_dividend": 0.7,
+      "factor_quality": 0.68,
+      "factor_momentum": 0.62,
+      "factor_risk": 0.75,
+      "weight_pct": 30.0
+    },
+    {
+      "ticker": "TEST.SN",
+      "score": null,
+      "dividend_yield": null,
+      "momentum_3m": null,
+      "momentum_6m": null,
+      "rsi": null,
+      "max_drawdown": null,
+      "signal": "🟡 ESPERAR",
+      "is_excluded": true,
+      "kill_reasons": [
+        "test"
+      ],
+      "thesis": "tesis2",
+      "factor_dividend": null,
+      "factor_quality": null,
+      "factor_momentum": null,
+      "factor_risk": null,
+      "weight_pct": null
+    }
+  ]
+}
