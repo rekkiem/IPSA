@@ -116,10 +116,30 @@ def fetch_fundamentals(ticker: str) -> Dict:
             "pb_ratio":          info.get("priceToBook"),
         })
 
-        # Normalizar deuda/equity: yfinance lo entrega en % a veces
-        de = defaults["debt_to_equity"]
-        if de is not None and de > 20:   # suele venir como porcentaje (ej: 150 = 1.5x)
-            defaults["debt_to_equity"] = de / 100
+        # ── Normalización inteligente de Deuda/Equity ────────────────
+        # yfinance tiene tres posibles representaciones:
+        #   1. Decimal real:     0.85  (85% D/E → 0.85x)
+        #   2. Porcentaje:       85.0  (mismo, pero *100)
+        #   3. Bancario real:    8.5   (apalancamiento regulatorio: ~8-10x es normal)
+        #
+        # Problema: no podemos distinguir 8.5 (bancario) de 8.5 (% mal formateado)
+        # Solución: detectar sector financiero por ticker y aplicar umbral ad-hoc
+        de      = defaults["debt_to_equity"]
+        sector  = info.get("sector", "").lower()
+        industry = info.get("industry", "").lower()
+        is_bank = any(k in sector + industry for k in
+                      ("bank", "financial", "insurance", "credit", "banco", "financier"))
+        defaults["is_financial_sector"] = is_bank
+
+        if de is not None:
+            if de > 20:
+                # Probablemente viene en porcentaje (ej: 85 → 0.85x)
+                defaults["debt_to_equity"] = de / 100
+            elif de > 5 and is_bank:
+                # Banco con D/E 5-15: apalancamiento regulatorio normal → no penalizar
+                # Guardamos el valor real pero marcamos para el filtro
+                defaults["debt_to_equity"] = de   # lo guardamos real
+            # Si de <= 5 y no banco: valor correcto, no tocar
 
         # Historial de dividendos
         try:

@@ -57,8 +57,16 @@ def print_daily_report(
     print(sep)
 
     if top5.empty:
-        print("  ⚠️ No hay suficientes acciones elegibles hoy.")
+        print("  [!] Top5 vacio — Ejecutar: python diagnostico.py para diagnostico completo")
         return
+
+    # Indicador de modo CAUTELA (crash de mercado)
+    caution_mode = any("CAUTELA" in str(row.get("signal","")) for _, row in top5.iterrows())
+    if caution_mode:
+        print("  [!] MODO CAUTELA — Mercado en condicion adversa sistemica")
+        print("      Todas las acciones tienen momentum negativo (shock macro).")
+        print("      Estos son los mejores 5 disponibles. Reducir exposicion.")
+        print()
 
     # Tabla header
     header = (
@@ -75,12 +83,16 @@ def print_daily_report(
         dd_str     = f"{row['max_drawdown']:.1f}%" if row.get("max_drawdown") is not None else "N/D"
         vol_str    = f"{row['volatility_annual']:.1f}%" if row.get("volatility_annual") is not None else "N/D"
 
-        signal_icon = "🟢" if SIGNAL_BUY in row["signal"] else ("🟡" if SIGNAL_WAIT in row["signal"] else "🔴")
+        sig = row.get("signal", "")
+        if "COMPRAR" in sig:   icon = "[C]"
+        elif "ESPERAR" in sig: icon = "[E]"
+        elif "CAUTELA" in sig: icon = "[!]"
+        else:                   icon = "[X]"
 
         print(
             f"  {i+1:<4} {row['ticker']:<16} {row['score']:<7.4f} {dy_pct:<7} "
             f"{spread_pct:<8} {rsi_str:<6} {dd_str:<8} {vol_str:<8} "
-            f"{signal_icon} {row['signal']}"
+            f"{icon} {sig}"
         )
 
     print(f"\n🧠 TESIS DE CADA ACTIVO")
@@ -120,35 +132,43 @@ def print_daily_report(
 
 
 def generate_risk_alerts(top5: pd.DataFrame, macro: Dict, regime: Dict):
-    """Imprime alertas de riesgo macro y micro."""
+    """Imprime alertas de riesgo macro y micro. ASCII-safe para Windows."""
     alerts = []
 
     rfr  = macro.get("risk_free_rate", 0)
     infl = macro.get("inflation", 0)
 
     if rfr > 0.06:
-        alerts.append("⚠️  MACRO: Tasa libre de riesgo alta — presión sobre valuaciones")
+        alerts.append("[MACRO] Tasa libre de riesgo alta -- presion sobre valuaciones")
     if infl > 0.05:
-        alerts.append("⚠️  MACRO: IPC elevado — riesgo de ajuste monetario adicional")
+        alerts.append("[MACRO] IPC elevado -- riesgo de ajuste monetario adicional")
 
     regime_name = regime.get("regime", "NEUTRAL")
     if regime_name == "BEAR":
-        alerts.append("🐻 MACRO: Mercado en régimen BEAR — mantener stop loss estrictos")
+        alerts.append("[BEAR] Mercado en regimen BEAR -- mantener stop loss estrictos")
     if regime_name == "BULL":
-        alerts.append("🐂 MACRO: Mercado BULL — vigilar sobrecompra en índice")
+        alerts.append("[BULL] Mercado BULL -- vigilar sobrecompra en indice")
 
-    # Micro
+    caution_mode = not top5.empty and any(
+        "CAUTELA" in str(row.get("signal","")) for _, row in top5.iterrows()
+    )
+    if caution_mode:
+        alerts.append("[!] MODO CAUTELA: Mercado en crash sistemico -- reducir exposicion")
+
     if not top5.empty:
         for _, row in top5.iterrows():
             rsi = row.get("rsi") or 50
             dd  = abs(row.get("max_drawdown") or 0)
-            if rsi > 65:
-                alerts.append(f"📌 MICRO [{row['ticker']}]: RSI={rsi:.0f} — entrada tardía, esperar corrección")
+            if rsi > 70:
+                alerts.append(f"[MICRO] {row['ticker']}: RSI={rsi:.0f} -- entrada tardia, esperar correccion")
             if dd > 20:
-                alerts.append(f"📌 MICRO [{row['ticker']}]: Drawdown {dd:.0f}% — alta volatilidad reciente")
+                alerts.append(f"[MICRO] {row['ticker']}: Drawdown {dd:.0f}% -- alta volatilidad reciente")
 
     if not alerts:
-        alerts.append("✅ Sin alertas significativas para hoy")
+        alerts.append("[OK] Sin alertas significativas para hoy")
+
+    for a in alerts:
+        print(f"  {a}")
 
     for a in alerts:
         print(f"  {a}")

@@ -545,28 +545,35 @@ def setup_telegram_env():
         os.path.dirname(os.path.dirname(__file__)), ".env"
     )
     if os.path.exists(env_path):
-        print(f"⚠️  .env ya existe: {env_path}")
+        print(f"AVISO: .env ya existe: {env_path}")
         return
 
-    content = """# IPSA Agent - Variables de Entorno
-# ─────────────────────────────────────────────────────────────
-# Telegram Bot Configuration
-# 1. Crear bot con @BotFather en Telegram
-# 2. Escribirle al bot y obtener chat_id en https://api.telegram.org/bot{TOKEN}/getUpdates
-TELEGRAM_TOKEN=
-TELEGRAM_CHAT_ID=
-
-# CMF Chile API Key (registrar en https://api.cmfchile.cl)
-CMF_API_TOKEN=
-
-# Configuración del agente
-RISK_FREE_RATE=0.05
-RUN_HOUR=9
-RUN_MINUTE=15
-"""
-    with open(env_path, "w") as f:
+    content = (
+        "# IPSA Agent - Variables de Entorno\n"
+        "# ---------------------------------------------------------\n"
+        "# Telegram Bot Configuration\n"
+        "# 1. Crear bot con @BotFather en Telegram\n"
+        "# 2. Enviarle un mensaje al bot\n"
+        "# 3. Obtener chat_id: https://api.telegram.org/bot{TOKEN}/getUpdates\n"
+        "TELEGRAM_TOKEN=\n"
+        "TELEGRAM_CHAT_ID=\n"
+        "\n"
+        "# CMF Chile API Key (registrar en https://api.cmfchile.cl)\n"
+        "CMF_API_TOKEN=\n"
+        "\n"
+        "# Configuracion del agente\n"
+        "RISK_FREE_RATE=0.05\n"
+        "RUN_HOUR=9\n"
+        "RUN_MINUTE=15\n"
+        "\n"
+        "# Dashboard Next.js\n"
+        "# REPORTS_DIR=C:\\ruta\\a\\ipsa_agent\\reports\n"
+        "# DATA_DIR=C:\\ruta\\a\\ipsa_agent\\data\n"
+    )
+    # encoding='utf-8' obligatorio en Windows para evitar UnicodeEncodeError
+    with open(env_path, "w", encoding="utf-8") as f:
         f.write(content)
-    print(f"✅ .env creado en {env_path}")
+    print(f"OK: .env creado en {env_path}")
     print("   Configura TELEGRAM_TOKEN y TELEGRAM_CHAT_ID antes de usar.")
 
 

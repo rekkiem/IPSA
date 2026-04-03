@@ -172,6 +172,21 @@ class TestFactors(unittest.TestCase):
         self.assertIn("factor_quality", r)
         self.assertIsNotNone(r["factor_quality"])
 
+    def test_quality_bank_high_de_not_penalized(self):
+        """Bancos con D/E 8-10x (Basilea III normal) deben tener score >= 0.60."""
+        # BSANTANDER: D/E=8.5, ROE=19.8% — debe rankear bien
+        r = self.fq(roe=0.198, debt_to_equity=8.5, earnings_growth=0.12,
+                    payout_ratio=0.58, current_ratio=None, is_bank=True)
+        self.assertGreaterEqual(r["factor_quality"], 0.60,
+            "Banco con D/E regulatorio 8.5x no debe ser penalizado")
+
+    def test_quality_nonbank_high_de_penalized(self):
+        """No-banco con D/E 8.5x sí debe ser penalizado."""
+        r = self.fq(roe=0.10, debt_to_equity=8.5, earnings_growth=0.05,
+                    payout_ratio=0.60, current_ratio=1.2, is_bank=False)
+        self.assertLess(r["factor_quality"], 0.40,
+            "No-banco con D/E 8.5x debe tener score bajo")
+
     # ── Momentum ──
     def test_momentum_basic_fields(self):
         """factor_momentum devuelve todos los campos esperados."""
@@ -227,30 +242,67 @@ class TestKillConditions(unittest.TestCase):
         self.kc = apply_kill_conditions
 
     def test_high_dividend_yield_excluded(self):
-        """DY > 18% debe excluir la acción."""
-        excluded, reasons = self.kc({"dividend_yield": 0.20})
+        """DY > 25% debe excluir (trampa de dividendo evidente)."""
+        excluded, reasons = self.kc({"dividend_yield": 0.30})
         self.assertTrue(excluded)
         self.assertTrue(any("DY" in r for r in reasons))
 
-    def test_high_payout_excluded(self):
-        """Payout > 95% debe excluir."""
-        excluded, reasons = self.kc({"payout_ratio": 0.97})
-        self.assertTrue(excluded)
+    def test_moderate_dividend_yield_not_excluded(self):
+        """DY = 20% NO debe excluir — puede ser legítimo en mercado caído."""
+        excluded, reasons = self.kc({"dividend_yield": 0.20})
+        self.assertFalse(excluded, f"DY 20% no es trampa evidente: {reasons}")
+
+    def test_high_payout_not_excluded(self):
+        """
+        Payout > 95-120% NO debe excluir.
+        Ya es penalizado en factor_quality. Ocurre normalmente cuando
+        una empresa paga dividendos de utilidades previas en año malo.
+        """
+        excluded, reasons = self.kc({"payout_ratio": 1.20})
+        self.assertFalse(excluded, f"Payout 120% no debe excluir en crash de mercado: {reasons}")
+        excluded2, _ = self.kc({"payout_ratio": 2.90})
+        self.assertFalse(excluded2, "Payout extremo tampoco excluye — lo maneja el score")
 
     def test_high_debt_equity_excluded(self):
-        """D/E > 2.5 debe excluir."""
-        excluded, reasons = self.kc({"debt_to_equity": 2.8})
+        """D/E > 4.0x debe excluir para no-bancos."""
+        excluded, reasons = self.kc({"debt_to_equity": 5.0, "is_financial_sector": False})
         self.assertTrue(excluded)
+
+    def test_moderate_debt_not_excluded(self):
+        """D/E = 2.8x NO debe excluir — ya penalizado en quality score."""
+        excluded, reasons = self.kc({"debt_to_equity": 2.8, "is_financial_sector": False})
+        self.assertFalse(excluded, f"D/E 2.8x no debe excluir (ya en score): {reasons}")
+
+    def test_bank_high_debt_not_excluded(self):
+        """Banco con D/E 9x (Basilea III) NO debe ser excluido."""
+        excluded, reasons = self.kc({
+            "debt_to_equity": 9.0, "is_financial_sector": True,
+            "dividend_yield": 0.058, "payout_ratio": 0.55,
+            "rsi": 52, "momentum_3m": 5.0, "momentum_6m": 8.0,
+        })
+        self.assertFalse(excluded, f"Banco D/E 9x no debe excluirse: {reasons}")
 
     def test_rsi_overbought_excluded(self):
-        """RSI > 80 debe excluir."""
-        excluded, reasons = self.kc({"rsi": 85})
+        """RSI > 88 debe excluir (sobrecompra extrema)."""
+        excluded, reasons = self.kc({"rsi": 90})
         self.assertTrue(excluded)
 
-    def test_severe_momentum_excluded(self):
-        """Mom 3M < -20% Y Mom 6M < -25% debe excluir."""
+    def test_rsi_80_not_excluded(self):
+        """RSI = 80-85 NO debe excluir — ocurre frecuentemente en bull runs."""
+        excluded, reasons = self.kc({"rsi": 82})
+        self.assertFalse(excluded, f"RSI 82 no debe excluir: {reasons}")
+
+    def test_severe_momentum_not_excluded(self):
+        """
+        Momentum bajista sistémico NO debe excluir.
+        En crash de mercado (Trump tariffs Abril 2026) TODOS los stocks
+        tienen m3 < -20% y m6 < -25% → kill condition sistémica vacía el Top5.
+        El factor_momentum ya penaliza esto en el score.
+        """
         excluded, reasons = self.kc({"momentum_3m": -22.0, "momentum_6m": -28.0})
-        self.assertTrue(excluded)
+        self.assertFalse(excluded,
+            "Momentum negativo NO debe excluir — ya penalizado en factor. "
+            "En crash sistémico (tariff shock) eliminaría TODOS los tickers.")
 
     def test_normal_stock_not_excluded(self):
         """Acción normal no debe ser excluida."""

@@ -13,13 +13,33 @@ from datetime import datetime
 from typing import Optional
 
 os.makedirs("logs", exist_ok=True)
+
+def _build_stream_handler() -> logging.StreamHandler:
+    """
+    StreamHandler con UTF-8 forzado en Windows.
+    Windows usa cp1252 por defecto → UnicodeEncodeError con emojis/caracteres especiales.
+    """
+    try:
+        # Python 3.9+: reconfigure stdout a UTF-8
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        handler = logging.StreamHandler(sys.stdout)
+    except Exception:
+        handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
+    return handler
+
+def _build_file_handler() -> logging.FileHandler:
+    fname = f"logs/ipsa_agent_{datetime.now().strftime('%Y%m%d')}.log"
+    # encoding='utf-8' evita el error en el handler de archivo en Windows
+    handler = logging.FileHandler(fname, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
+    return handler
+
 logging.basicConfig(
     level    = logging.INFO,
     format   = "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers = [
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(f"logs/ipsa_agent_{datetime.now().strftime('%Y%m%d')}.log"),
-    ],
+    handlers = [_build_stream_handler(), _build_file_handler()],
 )
 logger = logging.getLogger("ipsa_agent.main_v2")
 

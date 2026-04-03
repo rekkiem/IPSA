@@ -114,11 +114,11 @@ WEIGHT_RISK      = 0.15
 # ─────────────────────────────────────────────
 #  FILTROS (KILL CONDITIONS)
 # ─────────────────────────────────────────────
-MAX_DIVIDEND_YIELD  = 0.18   # > 18% = posible trampa (era 15%, muy estricto)
-MAX_PAYOUT_RATIO    = 0.95   # > 95% = insostenible (era 90%)
-MAX_DEBT_EQUITY     = 2.5    # > 2.5x = apalancamiento alto (era 2.0)
-RSI_OVERBOUGHT      = 80     # > 80 (era 75, demasiado estricto)
-RSI_OVERSOLD        = 25
+MAX_DIVIDEND_YIELD  = 0.25   # > 25% = trampa evidente de dividendo
+MAX_PAYOUT_RATIO    = 2.50   # > 250% = extremo insostenible (no 95% → era demasiado estricto)
+MAX_DEBT_EQUITY     = 4.0    # > 4.0x non-banco = riesgo quiebra
+RSI_OVERBOUGHT      = 88     # > 88 = sobrecompra extrema real
+RSI_OVERSOLD        = 20
 
 # ─────────────────────────────────────────────
 #  KELLY SIMPLIFICADO - ASIGNACIÓN
@@ -145,9 +145,10 @@ BACKTEST_FILE    = os.path.join(DATA_DIR, "backtest_results.json")
 # ─────────────────────────────────────────────
 #  SEÑALES
 # ─────────────────────────────────────────────
-SIGNAL_BUY    = "🟢 COMPRAR"
-SIGNAL_WAIT   = "🟡 ESPERAR"
-SIGNAL_AVOID  = "🔴 EVITAR"
+SIGNAL_BUY     = "🟢 COMPRAR"
+SIGNAL_WAIT    = "🟡 ESPERAR"
+SIGNAL_AVOID   = "🔴 EVITAR"
+SIGNAL_CAUTION = "🟠 CAUTELA"   # Mercado en crash sistémico — operar con precaución
 
 # Stop loss %
 STOP_LOSS_DEFAULT = 0.07  # 7%

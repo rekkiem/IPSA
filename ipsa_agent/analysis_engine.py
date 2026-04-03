@@ -102,17 +102,18 @@ def factor_dividend_arbitrage(
 # ─────────────────────────────────────────────────────────────────
 
 def factor_quality(
-    roe: Optional[float],
-    debt_to_equity: Optional[float],
+    roe:             Optional[float],
+    debt_to_equity:  Optional[float],
     earnings_growth: Optional[float],
-    payout_ratio: Optional[float],
-    current_ratio: Optional[float],
+    payout_ratio:    Optional[float],
+    current_ratio:   Optional[float],
+    is_bank:         bool = False,
 ) -> Dict:
     """
     Score de calidad compuesto por:
       - ROE normalizado (>20% = excelente)
       - Estabilidad utilidades (earnings_growth >= 0)
-      - Solvencia (D/E < 1 = ideal)
+      - Solvencia: D/E < 1 ideal para no-bancos; bancos usan CET1/Tier1 regulatorio
       - Payout controlado (<70%)
     """
     scores = []
@@ -122,15 +123,27 @@ def factor_quality(
         roe_score = min(max(roe, 0) / 0.25, 1.0)
         scores.append(("roe", roe_score, 0.35))
     else:
-        scores.append(("roe", 0.3, 0.35))  # neutral si no hay dato
+        scores.append(("roe", 0.3, 0.35))
 
-    # Deuda/Equity: D/E = 0 → 1.0; D/E >= 2 → 0
+    # Deuda/Equity: sector-aware
     if debt_to_equity is not None:
-        de_norm = debt_to_equity if debt_to_equity < 50 else debt_to_equity / 100
-        de_score = max(0.0, 1.0 - (de_norm / 2.0))
+        if is_bank:
+            # Bancos: D/E 8-12x es normal bajo Basilea III → score neutro-positivo
+            # Penalizamos solo si es EXTREMADAMENTE alto (>15x) o muy bajo (<3x, subgearing)
+            de = float(debt_to_equity)
+            if de < 3:
+                de_score = 0.55   # sub-leveraged bank (inusual)
+            elif de <= 12:
+                de_score = 0.70   # rango saludable regulatorio
+            else:
+                de_score = max(0.0, 0.70 - (de - 12) * 0.05)
+        else:
+            # No-banco: D/E 0 → 1.0; D/E >= 2.5 → 0
+            de_norm  = debt_to_equity if debt_to_equity < 50 else debt_to_equity / 100
+            de_score = max(0.0, 1.0 - (de_norm / 2.5))
         scores.append(("debt_equity", de_score, 0.30))
     else:
-        scores.append(("debt_equity", 0.4, 0.30))
+        scores.append(("debt_equity", 0.4 if not is_bank else 0.60, 0.30))
 
     # Crecimiento utilidades: [-50%, +50%] → [0, 1]
     if earnings_growth is not None:
@@ -146,8 +159,7 @@ def factor_quality(
     else:
         scores.append(("payout_ratio", 0.4, 0.15))
 
-    # Score ponderado
-    total_w = sum(w for _, _, w in scores)
+    total_w       = sum(w for _, _, w in scores)
     quality_score = sum(s * w for _, s, w in scores) / total_w
 
     return {
@@ -423,6 +435,7 @@ def analyze_ticker(
         earnings_growth = fund.get("earnings_growth"),
         payout_ratio    = fund.get("payout_ratio"),
         current_ratio   = fund.get("current_ratio"),
+        is_bank         = fund.get("is_financial_sector", False),
     )
 
     # Factor C: Momentum
@@ -435,12 +448,13 @@ def analyze_ticker(
     entry_zone = compute_entry_zone(df, current_price)
 
     return {
-        "ticker":         ticker,
-        "name":           fund.get("name", ticker),
-        "current_price":  round(current_price, 2),
-        "market_cap":     fund.get("market_cap"),
-        "pe_ratio":       fund.get("pe_ratio"),
-        "pb_ratio":       fund.get("pb_ratio"),
+        "ticker":               ticker,
+        "name":                 fund.get("name", ticker),
+        "current_price":        round(current_price, 2),
+        "market_cap":           fund.get("market_cap"),
+        "pe_ratio":             fund.get("pe_ratio"),
+        "pb_ratio":             fund.get("pb_ratio"),
+        "is_financial_sector":  fund.get("is_financial_sector", False),
         **div_factor,
         **qual_factor,
         **mom_factor,

@@ -148,7 +148,7 @@ class PriceCache:
         missing = [t for t in tickers if t not in cached]
 
         if not missing:
-            logger.info("[CACHE] Todos los tickers en caché ✓")
+            logger.info("[CACHE] Todos los tickers en cache OK")
             return cached
 
         logger.info(f"[CACHE] Descargando {len(missing)} tickers faltantes...")

@@ -203,16 +203,19 @@ class BacktestEngine:
         # Puntos de rebalanceo
         rebalance_dates = trade_dates[::self.rebalance_days]
 
-        portfolio       = {}      # {ticker: shares}
+        portfolio       = {}
         capital         = self.initial_capital
-        nav_series      = {}
+        nav_series      = {trade_dates[0]: self.initial_capital}  # NAV inicial
         portfolio_tickers_history = {}
+        rebalances_done = 0
 
         for i, rb_date in enumerate(rebalance_dates):
             logger.info(f"[BACKTEST] Rebalanceo {i+1}/{len(rebalance_dates)}: {rb_date.date()}")
 
             selected = self._select_portfolio_at(rb_date)
             if not selected:
+                logger.warning(f"[BACKTEST] Sin selección en {rb_date.date()} — manteniendo caja")
+                nav_series[rb_date] = self._compute_nav(portfolio, rb_date, capital)
                 continue
 
             # Liquidar posiciones anteriores
@@ -223,6 +226,7 @@ class BacktestEngine:
 
             portfolio = {}
             portfolio_tickers_history[str(rb_date.date())] = selected
+            rebalances_done += 1
 
             # Invertir equitativamente en el nuevo Top N
             weight_per_stock = 1.0 / len(selected)
@@ -232,15 +236,14 @@ class BacktestEngine:
                     alloc  = capital * weight_per_stock
                     shares = alloc / price
                     portfolio[ticker] = shares
-                    capital -= shares * price  # remanente a caja
+                    capital -= shares * price
 
             nav_series[rb_date] = self._compute_nav(portfolio, rb_date, capital)
 
-        # NAV al final del período
+        # NAV final
         final_nav = self._compute_nav(portfolio, trade_dates[-1], capital)
         nav_series[trade_dates[-1]] = final_nav
 
-        # Series temporales NAV
         nav_ts = pd.Series(nav_series).sort_index()
 
         # Benchmark: IPSA buy & hold
@@ -248,11 +251,12 @@ class BacktestEngine:
         ipsa_end   = self._get_ipsa_price(trade_dates[-1])
         benchmark_return = ((ipsa_end / ipsa_start) - 1) if ipsa_start and ipsa_end else None
 
-        # Métricas
         metrics = self._compute_metrics(nav_ts, benchmark_return)
         metrics["portfolio_history"] = portfolio_tickers_history
+        metrics["rebalances_done"]   = rebalances_done
 
-        logger.info(f"[BACKTEST] Completado. Retorno: {metrics.get('total_return', 0)*100:.1f}%")
+        ret = metrics.get('total_return', 0)
+        logger.info(f"[BACKTEST] Completado. Retorno: {ret*100:.1f}% | Rebalanceos: {rebalances_done}/{len(rebalance_dates)}")
 
         self._save_results(metrics)
         return metrics

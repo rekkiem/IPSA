@@ -3,3 +3,12 @@ node_modules/
 venv/
 *.log
 .env*
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Datos y Cache del Agente
+ipsa_agent/data/
+ipsa_agent/reports/
+tmp/
